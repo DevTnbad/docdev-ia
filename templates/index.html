@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocDev IA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="topo">
+            <div>
+                <h1>DocDev IA</h1>
+                <p class="subtitulo">Assistente simples de documentação e explicação de código com múltiplos provedores de IA</p>
+            </div>
+            <a class="link-topo" href="{{ url_for('history') }}">Ver histórico</a>
+        </header>
+
+        <section class="card">
+            <h2>Escolha o provedor de IA</h2>
+            <p class="muted">As opções abaixo ficam visíveis para o usuário e o custo é destacado por cor.</p>
+
+            <form method="POST">
+                <div class="provider-grid">
+                    {% for key, item in providers.items() %}
+                        <input
+                            class="provider-radio"
+                            type="radio"
+                            name="provider"
+                            id="provider_{{ key }}"
+                            value="{{ key }}"
+                            {% if provider == key %}checked{% endif %}
+                            required
+                        >
+                        <label for="provider_{{ key }}" class="provider-card {{ item.cost_class }}">
+                            <div class="provider-header">
+                                <strong>{{ item.label }}</strong>
+                                <span class="badge {{ item.cost_class }}">{{ item.cost_label }}</span>
+                            </div>
+                            <p>{{ item.description }}</p>
+                            <small>{{ item.key_hint }}</small>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <div class="legend">
+                    <span class="legend-item">
+                        <span class="legend-badge free">Gratuito</span>
+                        <span>sem custo para uso local</span>
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-badge free-limited">Gratuito com limites</span>
+                        <span>tem cota/restrição</span>
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-badge paid">Pago</span>
+                        <span>exige cobrança de API</span>
+                    </span>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <label for="language">Linguagem</label>
+                <select name="language" id="language" required>
+                    <option value="">Selecione</option>
+                    <option value="python" {% if language == 'python' %}selected{% endif %}>Python</option>
+                    <option value="javascript" {% if language == 'javascript' %}selected{% endif %}>JavaScript</option>
+                    <option value="java" {% if language == 'java' %}selected{% endif %}>Java</option>
+                    <option value="c" {% if language == 'c' %}selected{% endif %}>C</option>
+                    <option value="cpp" {% if language == 'cpp' %}selected{% endif %}>C++</option>
+                    <option value="html" {% if language == 'html' %}selected{% endif %}>HTML</option>
+                    <option value="css" {% if language == 'css' %}selected{% endif %}>CSS</option>
+                    <option value="sql" {% if language == 'sql' %}selected{% endif %}>SQL</option>
+                </select>
+
+                <label for="action">Ação</label>
+                <select name="action" id="action" required>
+                    <option value="">Selecione</option>
+                    <option value="explain" {% if action == 'explain' %}selected{% endif %}>Explicar código</option>
+                    <option value="document" {% if action == 'document' %}selected{% endif %}>Gerar documentação</option>
+                    <option value="comment" {% if action == 'comment' %}selected{% endif %}>Gerar comentários</option>
+                    <option value="improve" {% if action == 'improve' %}selected{% endif %}>Sugerir melhorias</option>
+                </select>
+
+                <label for="code">Código</label>
+                <textarea name="code" id="code" rows="14" placeholder="Cole aqui seu código..." required>{{ code or '' }}</textarea>
+
+                <button type="submit">Processar</button>
+            </form>
+        </section>
+
+        {% if result %}
+        <section class="card">
+            <h2>Resposta</h2>
+            <p class="result-provider">
+                Provedor usado:
+                <strong>{{ providers[provider].label }}</strong>
+                <span class="badge {{ providers[provider].cost_class }}">{{ providers[provider].cost_label }}</span>
+            </p>
+            <pre>{{ result }}</pre>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html>

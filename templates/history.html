@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico - DocDev IA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="topo">
+            <div>
+                <h1>Histórico</h1>
+                <p class="subtitulo">Consultas já realizadas no sistema</p>
+            </div>
+            <a class="link-topo" href="{{ url_for('index') }}">Voltar</a>
+        </header>
+
+        <section class="card">
+            {% if records %}
+                {% for item in records %}
+                    {% set p = providers.get(item.provider, providers['ollama']) %}
+                    <div class="history-item">
+                        <p><strong>ID:</strong> {{ item.id }}</p>
+                        <p>
+                            <strong>Provedor:</strong> {{ p.label }}
+                            <span class="badge {{ p.cost_class }}">{{ p.cost_label }}</span>
+                        </p>
+                        <p><strong>Linguagem:</strong> {{ item.language }}</p>
+                        <p><strong>Ação:</strong> {{ item.action }}</p>
+                        <p><strong>Data:</strong> {{ item.created_at }}</p>
+
+                        <p><strong>Código:</strong></p>
+                        <pre>{{ item.code }}</pre>
+
+                        <p><strong>Resposta:</strong></p>
+                        <pre>{{ item.response }}</pre>
+                    </div>
+                    <hr>
+                {% endfor %}
+            {% else %}
+                <p>Nenhum registro encontrado.</p>
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>
