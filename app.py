@@ -26,12 +26,12 @@ PROVIDERS = {
         "description": "Boa opção para testes e pequenos projetos.",
         "key_hint": "Usa GEMINI_API_KEY",
     },
-    "Grok": {
+    "grok": {
         "label": "Grok API",
-        "cost_label": "Gratuito com limites",
-        "cost_class": "free-limited",
-        "description": "API rápida para inferência com free tier.",
-        "key_hint": "Usa Grok_API_KEY",
+        "cost_label": "Pago",
+        "cost_class": "paid",
+        "description": "Usa a API oficial da xAI para acessar modelos Grok.",
+        "key_hint": "Usa XAI_API_KEY",
     },
     "openai": {
         "label": "OpenAI API",
@@ -40,6 +40,24 @@ PROVIDERS = {
         "description": "Integração paga, separada do ChatGPT.",
         "key_hint": "Usa OPENAI_API_KEY",
     },
+}
+
+VALID_LANGUAGES = {
+    "python",
+    "javascript",
+    "java",
+    "c",
+    "cpp",
+    "html",
+    "css",
+    "sql",
+}
+
+VALID_ACTIONS = {
+    "explain",
+    "document",
+    "comment",
+    "improve",
 }
 
 
@@ -242,13 +260,14 @@ def call_gemini(prompt):
     raise RuntimeError(f"Formato de resposta inesperado do Gemini: {data}")
 
 
-def call_Grok(prompt):
-    api_key = os.getenv("Grok_API_KEY", "").strip()
-    model = os.getenv("Grok_MODEL", "llama-3.1-8b-instant").strip()
-    url = "https://api.Grok.com/openai/v1/chat/completions"
+def call_grok(prompt):
+    api_key = os.getenv("XAI_API_KEY", "").strip()
+    model = os.getenv("XAI_MODEL", "grok-4.20-reasoning").strip()
+    base_url = os.getenv("XAI_BASE_URL", "https://api.x.ai").rstrip("/")
+    url = f"{base_url}/v1/chat/completions"
 
     if not api_key:
-        raise RuntimeError("Grok_API_KEY não configurada no arquivo .env.")
+        raise RuntimeError("XAI_API_KEY não configurada no arquivo .env.")
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -270,13 +289,16 @@ def call_Grok(prompt):
                 "content": prompt
             }
         ],
-        "temperature": 0.3
+        "temperature": 0.3,
+        "stream": False
     }
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=60)
     except requests.RequestException as e:
-        raise RuntimeError(f"Erro ao conectar com o Grok: {e}")
+        raise RuntimeError(f"Erro ao conectar com o Grok/xAI: {e}")
+
+    raw_text = response.text
 
     try:
         data = response.json()
@@ -284,23 +306,45 @@ def call_Grok(prompt):
         data = None
 
     if response.status_code >= 400:
-        message = "Erro desconhecido no Grok."
+        message = "Erro desconhecido no Grok/xAI."
+
         if isinstance(data, dict):
-            message = data.get("error", {}).get("message", message)
-        raise RuntimeError(f"Grok ({response.status_code}): {message}")
+            error_data = data.get("error")
+
+            if isinstance(error_data, dict):
+                message = error_data.get("message", message)
+            elif isinstance(error_data, str) and error_data.strip():
+                message = error_data.strip()
+            elif isinstance(data.get("message"), str) and data.get("message").strip():
+                message = data.get("message").strip()
+            else:
+                message = raw_text[:500] if raw_text else message
+        elif raw_text:
+            message = raw_text[:500]
+
+        raise RuntimeError(f"Grok/xAI ({response.status_code}): {message}")
 
     if not isinstance(data, dict):
-        raise RuntimeError("O Grok retornou uma resposta inválida.")
+        raise RuntimeError("O Grok/xAI retornou uma resposta inválida.")
 
     try:
-        content = data["choices"][0]["message"]["content"].strip()
+        content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):
-        raise RuntimeError(f"Formato de resposta inesperado do Grok: {data}")
+        raise RuntimeError(f"Formato de resposta inesperado do Grok/xAI: {data}")
 
-    if not content:
-        raise RuntimeError("O Grok retornou uma resposta vazia.")
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                text_value = item.get("text")
+                if isinstance(text_value, str) and text_value.strip():
+                    parts.append(text_value.strip())
+        content = "\n\n".join(parts)
 
-    return content
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("O Grok/xAI retornou uma resposta vazia.")
+
+    return content.strip()
 
 
 def call_ollama(prompt):
@@ -353,8 +397,8 @@ def generate_with_provider(provider, prompt):
         return call_ollama(prompt)
     if provider == "gemini":
         return call_gemini(prompt)
-    if provider == "Grok":
-        return call_Grok(prompt)
+    if provider == "grok":
+        return call_grok(prompt)
     if provider == "openai":
         return call_openai(prompt)
 
@@ -374,16 +418,22 @@ def index():
 
     if request.method == "POST":
         provider = request.form.get("provider", "ollama").strip().lower()
-        language = request.form.get("language", "").strip()
-        action = request.form.get("action", "").strip()
+        language = request.form.get("language", "").strip().lower()
+        action = request.form.get("action", "").strip().lower()
         code = request.form.get("code", "").strip()
 
         if provider not in PROVIDERS:
             flash("Selecione um provedor válido.", "error")
             provider = "ollama"
 
-        elif not language or not action or not code:
-            flash("Preencha todos os campos.", "error")
+        elif language not in VALID_LANGUAGES:
+            flash("Selecione uma linguagem válida.", "error")
+
+        elif action not in VALID_ACTIONS:
+            flash("Selecione uma ação válida.", "error")
+
+        elif not code:
+            flash("Cole um código para processar.", "error")
 
         else:
             try:

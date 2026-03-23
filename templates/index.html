@@ -18,7 +18,7 @@
 
         <section class="card">
             <h2>Escolha o provedor de IA</h2>
-            <p class="muted">As opções abaixo ficam visíveis para o usuário e o custo é destacado por cor.</p>
+            <p class="muted">As opções abaixo ficam visíveis para o usuário e o custo estimado é destacado por cor.</p>
 
             <form method="POST">
                 <div class="provider-grid">
@@ -50,7 +50,7 @@
                     </span>
                     <span class="legend-item">
                         <span class="legend-badge free-limited">Gratuito com limites</span>
-                        <span>tem cota/restrição</span>
+                        <span>tem cota ou restrição</span>
                     </span>
                     <span class="legend-item">
                         <span class="legend-badge paid">Pago</span>
@@ -96,12 +96,13 @@
         </section>
 
         {% if result %}
+        {% set selected_provider = providers.get(provider, providers['ollama']) %}
         <section class="card">
             <h2>Resposta</h2>
             <p class="result-provider">
                 Provedor usado:
-                <strong>{{ providers[provider].label }}</strong>
-                <span class="badge {{ providers[provider].cost_class }}">{{ providers[provider].cost_label }}</span>
+                <strong>{{ selected_provider.label }}</strong>
+                <span class="badge {{ selected_provider.cost_class }}">{{ selected_provider.cost_label }}</span>
             </p>
             <pre>{{ result }}</pre>
         </section>
